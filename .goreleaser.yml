@@ -1,0 +1,16 @@
+---
+archives:
+- name_template: "{{.ProjectName}}_{{.Os}}_{{.Arch}}"
+builds:
+- binary: github-config
+  main: cmd/github-config/main.go
+  env:
+  - CGO_ENABLED=0
+  goos:
+  - windows
+  - darwin
+  - linux
+  goarch:
+  - amd64
+release:
+  prerelease: true
