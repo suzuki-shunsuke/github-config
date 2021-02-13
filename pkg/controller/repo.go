@@ -49,7 +49,7 @@ func (ctrl *Controller) RunRepo(ctx context.Context, param Param) error {
 		r := Repository{
 			GitHub: repo,
 			Name:   repo.GetName(),
-			Owner:  repo.GetOwner().GetName(),
+			Owner:  cfg.Owner,
 		}
 		logE := logrus.WithFields(logrus.Fields{
 			"repo": r.Name,

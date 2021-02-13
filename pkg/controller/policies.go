@@ -1,11 +1,9 @@
 package controller
 
-type NewRepoPolicy func() RepoPolicy
+type NewRepoPolicy func(param map[string]interface{}) (RepoPolicy, error)
 
 func supportedRepoPolicies() map[string]NewRepoPolicy {
 	return map[string]NewRepoPolicy{
-		"has_projects": func() RepoPolicy {
-			return &RuleHasProjects{}
-		},
+		"has_projects": newRuleHasProjects,
 	}
 }

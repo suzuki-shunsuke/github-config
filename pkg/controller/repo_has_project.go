@@ -2,9 +2,10 @@ package controller
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
 	"github.com/google/go-github/v33/github"
-	"github.com/sirupsen/logrus"
 )
 
 const DataDogEventSourceType = "GITHUBCONFIG"
@@ -26,17 +27,27 @@ func (rule *RuleHasProjects) Match(ctx context.Context, repo Repository) (bool, 
 	if !repo.GitHub.GetHasProjects() {
 		return false, nil
 	}
-	logE := logrus.WithFields(logrus.Fields{
-		"repo": repo.Name,
-	})
 	if !rule.CheckListProjects {
 		return true, nil
 	}
 	if projects, _, err := rule.client.Repositories.ListProjects(ctx, repo.Owner, repo.Name, nil); err != nil {
-		logE.WithError(err).Error("list projects")
-		return true, nil
+		return false, fmt.Errorf("list projects: %w", err)
 	} else if len(projects) == 0 {
 		return true, nil
 	}
 	return false, nil
+}
+
+func newRuleHasProjects(param map[string]interface{}) (RepoPolicy, error) {
+	policy := RuleHasProjects{}
+	if a, ok := param["check_usage"]; !ok {
+		return &RuleHasProjects{
+			CheckListProjects: true,
+		}, nil
+	} else if f, ok := a.(bool); !ok {
+		return nil, errors.New("'check_usage' must be bool")
+	} else {
+		policy.CheckListProjects = f
+	}
+	return &policy, nil
 }

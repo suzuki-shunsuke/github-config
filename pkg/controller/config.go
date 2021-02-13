@@ -44,7 +44,7 @@ type RuleConfig struct {
 
 type PolicyConfig struct {
 	Type  string
-	Param interface{}
+	Param map[string]interface{}
 }
 
 func (ctrl *Controller) readConfig(param Param, cfg *Config) error {
@@ -69,7 +69,11 @@ func (rule *Rule) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if newPolicy, ok := newRepoMatchers[a.Policy.Type]; !ok {
 		return errors.New("invalid policy type: " + a.Policy.Type)
 	} else {
-		rule.Policy = newPolicy()
+		policy, err := newPolicy(a.Policy.Param)
+		if err != nil {
+			return err
+		}
+		rule.Policy = policy
 	}
 	return nil
 }
