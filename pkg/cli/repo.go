@@ -15,6 +15,7 @@ func (runner *Runner) setCLIArg(c *cli.Context, param controller.Param) (control
 	if param.ConfigFilePath == "" {
 		param.ConfigFilePath = "github-config.yaml"
 	}
+	param.DryRun = c.Bool("dry-run")
 	return param, nil
 }
 

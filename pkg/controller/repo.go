@@ -9,28 +9,52 @@ import (
 	"golang.org/x/oauth2"
 )
 
+const (
+	maxPerPage = 100
+	maxLoop    = 100
+)
+
+type RepoEditor interface {
+	Edit(*github.Repository)
+}
+
 func (ctrl *Controller) RunRepo(ctx context.Context, param Param) error {
 	cfg := Config{}
 	if err := ctrl.readConfig(param, &cfg); err != nil {
 		return err
 	}
+	logrus.WithFields(logrus.Fields{
+		"count": len(cfg.Repo.Rules),
+	}).Info("list repo rules")
 
 	ctrl.Config = cfg
+	param.Owner = cfg.Owner
 
 	client := github.NewClient(oauth2.NewClient(ctx, oauth2.StaticTokenSource(
-		&oauth2.Token{AccessToken: cfg.GitHubToken},
+		&oauth2.Token{AccessToken: param.GitHubToken},
 	)))
+	for i, rule := range cfg.Repo.Rules {
+		rule.Policy.SetGitHubClient(client)
+		cfg.Repo.Rules[i] = rule
+	}
 
 	repos, err := ctrl.listRepos(ctx, client, param)
 	if err != nil {
 		return err
 	}
+	logrus.WithFields(logrus.Fields{
+		"count": len(repos),
+	}).Info("list repositories")
 	for _, repo := range repos {
-		repoName := repo.GetName()
+		r := Repository{
+			GitHub: repo,
+			Name:   repo.GetName(),
+			Owner:  repo.GetOwner().GetName(),
+		}
 		logE := logrus.WithFields(logrus.Fields{
-			"repo": repoName,
+			"repo": r.Name,
 		})
-		if err := ctrl.handleRepo(ctx, param, client, repo); err != nil {
+		if err := ctrl.handleRepo(ctx, param, client, r); err != nil {
 			logE.WithError(err).Error("handle repository")
 		}
 	}
@@ -64,100 +88,45 @@ type Repository struct {
 	Name   string
 }
 
-type Rule interface {
-	Match(repo Repository) (bool, error)
-}
-
-type ParamRule struct {
-}
-
-type EditRepo interface {
-}
-
-func (ctrl *Controller) handleRepo(ctx context.Context, param Param, client *github.Client, repo *github.Repository) error { //nolint:unparam
-	repoName := repo.GetName()
+func (ctrl *Controller) handleRepo(ctx context.Context, param Param, client *github.Client, repo Repository) error { //nolint:unparam
+	repoName := repo.Name
 	logE := logrus.WithFields(logrus.Fields{
 		"repo": repoName,
 	})
 	updatedRepo := &github.Repository{}
 
-	for _, rule := range ctrl.Rules {
-		if f, err := rule.Match(ctx, repo); err != nil {
-			logE.WithError(err).Error("update a repository")
+	isEdited := false
+	for _, rule := range ctrl.Config.Repo.Rules {
+		logE.WithFields(logrus.Fields{
+			"targets": rule.Targets,
+		}).Debug("check rule")
+		if f, err := rule.Targets.Match(repo); err != nil { //nolint:nestif
+			logE.WithError(err).Error("check a repository matches with the targets")
 			continue
 		} else if f {
-			if err := rule.Do(ctx, repo, updatedRepo); err != nil {
-				logE.WithError(err).Error("update a repository")
+			logE.Debug("a repository matches with the targets")
+			if f, err := rule.Policy.Match(ctx, repo); err != nil {
+				logE.WithError(err).Error("check a repository matches with the policy")
+				continue
+			} else if f {
+				logE.Info("a repository matches with the rule")
+				if edit, ok := rule.Policy.(RepoEditor); ok {
+					isEdited = true
+					logE.Info("edit a repository")
+					edit.Edit(updatedRepo)
+				}
 			}
 		}
 	}
-	if _, _, err := client.Repositories.Edit(ctx, param.Owner, repoName, updatedRepo); err != nil {
-		logE.WithError(err).Error("update a repository")
-	}
-
-	for _, repoItem := range ctrl.Config.Repo.Items {
-		if f, err := repoItem.Condition.MatchRepo(repo); err != nil {
-			return err
-		} else if !f {
-			continue
-		}
-		if f, err := repoItem.Rule.MatchRepo(repo); err != nil {
-			return err
-		} else if !f {
-			continue
-		}
-		if err := repoItem.DoAction(repo, updatedRepo); err != nil {
-			return err
+	if isEdited {
+		if param.DryRun {
+			logE.Info("[DRY RUN] update a repository")
+		} else {
+			if _, _, err := client.Repositories.Edit(ctx, param.Owner, repoName, updatedRepo); err != nil {
+				logE.WithError(err).Error("update a repository")
+			}
+			logE.Info("update a repository")
 		}
 	}
-
-	if !repo.GetPrivate() {
-		// public
-		updatedRepo.Private = github.Bool(true)
-	}
-	if repo.GetHasProjects() {
-		if projects, _, err := client.Repositories.ListProjects(ctx, param.Owner, repoName, nil); err != nil {
-			logE.WithError(err).Error("list projects")
-		} else if len(projects) == 0 {
-			updatedRepo.HasProjects = github.Bool(false)
-		}
-	}
-	if repo.GetHasIssues() {
-		if issues, _, err := client.Issues.ListByRepo(ctx, param.Owner, repoName, nil); err != nil {
-			logE.WithError(err).Error("list issues")
-		} else if len(issues) == 0 {
-			updatedRepo.HasIssues = github.Bool(false)
-		}
-	}
-	if repo.GetHasPages() {
-		// DisablePages
-		updatedRepo.HasPages = github.Bool(false)
-	}
-	if repo.GetFork() {
-		updatedRepo.Fork = github.Bool(false)
-	}
-	if _, _, err := client.Repositories.Edit(ctx, param.Owner, repoName, updatedRepo); err != nil {
-		logE.WithError(err).Error("update a repository")
-	}
-	// UpdateBranchProtection
-	if _, _, err := client.Repositories.UpdateBranchProtection(ctx, param.Owner, repoName, "master", &github.ProtectionRequest{}); err != nil {
-		logE.WithError(err).Error("update a repository")
-	}
-	// TODO manage access
-	// TODO remove not allowed webhook url
-	// TODO remove not allowed integration
-	// TODO remove not allowed deploy key
-	if f, _, err := client.Repositories.GetVulnerabilityAlerts(ctx, param.Owner, repoName); err != nil {
-		logE.WithError(err).Error("get whether the vulnerability alerts is enabled")
-	} else if !f {
-		if _, err := client.Repositories.EnableVulnerabilityAlerts(ctx, param.Owner, repoName); err != nil {
-			logE.WithError(err).Error("enable vulnerability alerts")
-		}
-	}
-	// TODO enable Dependabot security updates
-	if _, err := client.Repositories.EnableAutomatedSecurityFixes(ctx, param.Owner, repoName); err != nil {
-		logE.WithError(err).Error("enable automated security fixes")
-	}
-
 	return nil
 }

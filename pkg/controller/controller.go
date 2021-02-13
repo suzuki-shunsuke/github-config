@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"io"
 	"os"
 
@@ -22,11 +23,14 @@ func New(ctx context.Context, param Param) (Controller, Param, error) {
 	if param.LogLevel != "" {
 		lvl, err := logrus.ParseLevel(param.LogLevel)
 		if err != nil {
-			logrus.WithFields(logrus.Fields{
-				"log_level": param.LogLevel,
-			}).WithError(err).Error("the log level is invalid")
+			return Controller{}, param, errors.New("the log level is invalid")
 		}
 		logrus.SetLevel(lvl)
+	}
+
+	param.GitHubToken = os.Getenv("GITHUB_TOKEN")
+	if param.GitHubToken == "" {
+		return Controller{}, param, errors.New("GITHUB_TOKEN is missing")
 	}
 
 	return Controller{

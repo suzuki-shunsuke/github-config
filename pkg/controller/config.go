@@ -2,64 +2,49 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
 	"github.com/google/go-github/v33/github"
-	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 )
 
 type Config struct {
-	GitHubToken string
-	Owner       string `yaml:"org_name"`
-	Org         Org
-	Repo        Repo
+	Owner string `yaml:"org_name"`
+	Repo  RepoConfig
 }
 
 type Param struct {
 	ConfigFilePath string
 	LogLevel       string
 	Owner          string
+	GitHubToken    string
+	DryRun         bool
 }
 
-type Org struct {
-	Items []OrgItem
+type RepoConfig struct {
+	Rules []Rule
 }
 
-type OrgItem struct {
-	Rule    RuleW
-	Action  Action
-	Enabled bool
+type RepoPolicy interface {
+	Match(ctx context.Context, repo Repository) (bool, error)
+	SetGitHubClient(*github.Client)
 }
 
-type Action struct {
-	Fix          bool
-	DataDogEvent DataDogEvent `yaml:"datadog_event"`
+type Rule struct {
+	Policy  RepoPolicy
+	Targets Targets
 }
 
-type DataDogEvent struct {
-	Enabled bool
+type RuleConfig struct {
+	Policy  PolicyConfig
+	Targets Targets
 }
 
-type DataDogEventParam struct {
-	AggregationKey string `yaml:"aggregation_key"`
-	AlertType      string `yaml:"alert_type"`
-	Priority       string `yaml:"priority"`
-	SourceTypeName string `yaml:"source_type_name"`
-	Tags           []string
-	Text           string
-	Title          string
-}
-
-type Repo struct {
-	Items []RepoItem
-}
-
-type RepoItem struct {
-	Rule      RuleW
-	Condition Condition
-	Action    Action
+type PolicyConfig struct {
+	Type  string
+	Param interface{}
 }
 
 func (ctrl *Controller) readConfig(param Param, cfg *Config) error {
@@ -74,87 +59,17 @@ func (ctrl *Controller) readConfig(param Param, cfg *Config) error {
 	return nil
 }
 
-type Condition struct {
-	Exclude []string
-	Include []string
-}
-
-func (cond *Condition) MatchRepo(repo *github.Repository) (bool, error) {
-	repoName := repo.GetName()
-	if len(cond.Exclude) > 0 {
-		for _, exclude := range cond.Exclude {
-			if repoName == exclude {
-				return false, nil
-			}
-		}
-		return true, nil
+func (rule *Rule) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	a := RuleConfig{}
+	if err := unmarshal(&a); err != nil {
+		return err
 	}
-	if len(cond.Include) > 0 {
-		for _, include := range cond.Include {
-			if repoName == include {
-				return true, nil
-			}
-		}
-		return false, nil
-	}
-	return false, nil
-}
-
-type RuleW struct {
-	Type  string
-	Param RuleParam
-}
-
-type RuleParam map[string]interface{}
-
-func (rule *RuleW) MatchRepo(ctx context.Context, repo *github.Repository, client *github.Client) (bool, error) {
-	owner := repo.GetOwner().GetName()
-	repoName := repo.GetName()
-	logE := logrus.WithFields(logrus.Fields{
-		"owner": owner,
-		"repo":  repoName,
-	})
-	switch rule.Type {
-	case "has_projects":
-		if repo.GetHasProjects() {
-			if projects, _, err := client.Repositories.ListProjects(ctx, owner, repoName, nil); err != nil {
-				logE.WithError(err).Error("list projects")
-				return true, nil
-			} else if len(projects) == 0 {
-				return true, nil
-			}
-		}
-	case "has_issues":
-		if repo.GetHasIssues() {
-			if issues, _, err := client.Issues.ListByRepo(ctx, owner, repoName, nil); err != nil {
-				logE.WithError(err).Error("list issues")
-				return true, nil
-			} else if len(issues) == 0 {
-				return true, nil
-			}
-		}
-	}
-	return false, nil
-}
-
-func (repoItem *RepoItem) DoAction(ctx context.Context, repo, updatedRepo *github.Repository, client *github.Client) error {
-	owner := repo.GetOwner().GetName()
-	repoName := repo.GetName()
-	logE := logrus.WithFields(logrus.Fields{
-		"owner": owner,
-		"repo":  repoName,
-	})
-	switch repoItem.Rule.Type {
-	case "has_projects":
-		if repo.GetHasProjects() {
-			if projects, _, err := client.Repositories.ListProjects(ctx, owner, repoName, nil); err != nil {
-				logE.WithError(err).Error("list projects")
-				return nil
-			} else if len(projects) == 0 {
-				updatedRepo.HasProjects = github.Bool(false)
-				return nil
-			}
-		}
+	rule.Targets = a.Targets
+	newRepoMatchers := supportedRepoPolicies()
+	if newPolicy, ok := newRepoMatchers[a.Policy.Type]; !ok {
+		return errors.New("invalid policy type: " + a.Policy.Type)
+	} else {
+		rule.Policy = newPolicy()
 	}
 	return nil
 }
