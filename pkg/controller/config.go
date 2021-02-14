@@ -45,7 +45,7 @@ type Rule struct {
 type RuleConfig struct {
 	Policy  PolicyConfig
 	Targets Targets
-	Actions []ActionConfig
+	Action  ActionConfig
 }
 
 type PolicyConfig struct {
@@ -76,18 +76,14 @@ func (rule *Rule) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		return err
 	}
 	rule.Targets = a.Targets
-	if len(a.Actions) == 0 {
-		a.Actions = []ActionConfig{
-			{
-				Type: "fix",
-			},
-		}
+	if a.Action.Type == "" {
+		a.Action.Type = "fix"
 	}
 	newRepoMatchers := supportedRepoPolicies()
 	if newPolicy, ok := newRepoMatchers[a.Policy.Type]; !ok {
 		return errors.New("invalid policy type: " + a.Policy.Type)
 	} else {
-		policy, err := newPolicy(a.Policy.Param, a.Actions)
+		policy, err := newPolicy(a.Policy.Param, a.Action)
 		if err != nil {
 			return err
 		}

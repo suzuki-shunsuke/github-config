@@ -102,15 +102,6 @@ type ParamAction struct {
 	DryRun           bool
 }
 
-func hasDataDogMetricAction(actions []ActionConfig) bool {
-	for _, action := range actions {
-		if action.Type == "datadog_metric" {
-			return true
-		}
-	}
-	return false
-}
-
 func (ctrl *Controller) handleRepo(ctx context.Context, param Param, client *github.Client, repo Repository) error { //nolint:unparam
 	repoName := repo.Name
 	logE := logrus.WithFields(logrus.Fields{
