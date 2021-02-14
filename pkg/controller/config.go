@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/go-github/v33/github"
 	"gopkg.in/yaml.v2"
+	"gopkg.in/zorkian/go-datadog-api.v2"
 )
 
 type Config struct {
@@ -20,6 +21,7 @@ type Param struct {
 	LogLevel       string
 	Owner          string
 	GitHubToken    string
+	DataDogAPIKey  string
 	DryRun         bool
 }
 
@@ -30,6 +32,9 @@ type RepoConfig struct {
 type RepoPolicy interface {
 	Match(ctx context.Context, repo Repository) (bool, error)
 	SetGitHubClient(*github.Client)
+	SetDataDogClient(*datadog.Client)
+	Action(ctx context.Context, param *ParamAction) error
+	DataDogMetric(ctx context.Context, param *ParamAction) error
 }
 
 type Rule struct {
@@ -40,9 +45,15 @@ type Rule struct {
 type RuleConfig struct {
 	Policy  PolicyConfig
 	Targets Targets
+	Actions []ActionConfig
 }
 
 type PolicyConfig struct {
+	Type  string
+	Param map[string]interface{}
+}
+
+type ActionConfig struct {
 	Type  string
 	Param map[string]interface{}
 }
@@ -65,11 +76,18 @@ func (rule *Rule) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		return err
 	}
 	rule.Targets = a.Targets
+	if len(a.Actions) == 0 {
+		a.Actions = []ActionConfig{
+			{
+				Type: "fix",
+			},
+		}
+	}
 	newRepoMatchers := supportedRepoPolicies()
 	if newPolicy, ok := newRepoMatchers[a.Policy.Type]; !ok {
 		return errors.New("invalid policy type: " + a.Policy.Type)
 	} else {
-		policy, err := newPolicy(a.Policy.Param)
+		policy, err := newPolicy(a.Policy.Param, a.Actions)
 		if err != nil {
 			return err
 		}

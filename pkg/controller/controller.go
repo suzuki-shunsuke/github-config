@@ -33,6 +33,8 @@ func New(ctx context.Context, param Param) (Controller, Param, error) {
 		return Controller{}, param, errors.New("GITHUB_TOKEN is missing")
 	}
 
+	param.DataDogAPIKey = os.Getenv("DATADOG_API_KEY")
+
 	return Controller{
 		Stdin:  os.Stdin,
 		Stdout: os.Stdout,

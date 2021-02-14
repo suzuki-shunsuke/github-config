@@ -3,20 +3,18 @@ package controller
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/go-github/v33/github"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
+	"gopkg.in/zorkian/go-datadog-api.v2"
 )
 
 const (
 	maxPerPage = 100
 	maxLoop    = 100
 )
-
-type RepoEditor interface {
-	Edit(*github.Repository)
-}
 
 func (ctrl *Controller) RunRepo(ctx context.Context, param Param) error {
 	cfg := Config{}
@@ -30,11 +28,16 @@ func (ctrl *Controller) RunRepo(ctx context.Context, param Param) error {
 	ctrl.Config = cfg
 	param.Owner = cfg.Owner
 
+	if param.DataDogAPIKey != "" {
+		ctrl.DataDog = datadog.NewClient(param.DataDogAPIKey, "")
+	}
+
 	client := github.NewClient(oauth2.NewClient(ctx, oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: param.GitHubToken},
 	)))
 	for i, rule := range cfg.Repo.Rules {
 		rule.Policy.SetGitHubClient(client)
+		rule.Policy.SetDataDogClient(ctrl.DataDog)
 		cfg.Repo.Rules[i] = rule
 	}
 
@@ -88,14 +91,39 @@ type Repository struct {
 	Name   string
 }
 
+type ParamAction struct {
+	Repo             Repository
+	UpdatedRepo      *github.Repository
+	Actions          []ActionConfig
+	DataDogMetrics   []datadog.Metric
+	TimestampFloat64 float64
+	TimestampInt     int
+	IsEdited         bool
+	DryRun           bool
+}
+
+func hasDataDogMetricAction(actions []ActionConfig) bool {
+	for _, action := range actions {
+		if action.Type == "datadog_metric" {
+			return true
+		}
+	}
+	return false
+}
+
 func (ctrl *Controller) handleRepo(ctx context.Context, param Param, client *github.Client, repo Repository) error { //nolint:unparam
 	repoName := repo.Name
 	logE := logrus.WithFields(logrus.Fields{
 		"repo": repoName,
 	})
-	updatedRepo := &github.Repository{}
-
-	isEdited := false
+	ts := time.Now().Unix()
+	paramAction := ParamAction{
+		Repo:             repo,
+		UpdatedRepo:      &github.Repository{},
+		TimestampFloat64: float64(ts),
+		TimestampInt:     int(ts),
+		DryRun:           param.DryRun,
+	}
 	for _, rule := range ctrl.Config.Repo.Rules {
 		logE.WithFields(logrus.Fields{
 			"targets": rule.Targets,
@@ -105,27 +133,40 @@ func (ctrl *Controller) handleRepo(ctx context.Context, param Param, client *git
 			continue
 		} else if f {
 			logE.Debug("a repository matches with the targets")
+			if err := rule.Policy.DataDogMetric(ctx, &paramAction); err != nil {
+				logE.WithError(err).Error("add a metric which is sent to DataDog")
+			}
 			if f, err := rule.Policy.Match(ctx, repo); err != nil {
 				logE.WithError(err).Error("check a repository matches with the policy")
 				continue
 			} else if f {
 				logE.Info("a repository matches with the rule")
-				if edit, ok := rule.Policy.(RepoEditor); ok {
-					isEdited = true
-					logE.Info("edit a repository")
-					edit.Edit(updatedRepo)
+				// TODO action
+				if err := rule.Policy.Action(ctx, &paramAction); err != nil {
+					logE.WithError(err).Error("prepare")
+					continue
 				}
 			}
 		}
 	}
-	if isEdited {
+	if paramAction.IsEdited {
 		if param.DryRun {
 			logE.Info("[DRY RUN] update a repository")
 		} else {
-			if _, _, err := client.Repositories.Edit(ctx, param.Owner, repoName, updatedRepo); err != nil {
+			if _, _, err := client.Repositories.Edit(ctx, param.Owner, repoName, paramAction.UpdatedRepo); err != nil {
 				logE.WithError(err).Error("update a repository")
 			}
 			logE.Info("update a repository")
+		}
+	}
+	if len(paramAction.DataDogMetrics) != 0 {
+		if param.DryRun {
+			logE.Info("[DRY RUN] post metrics to DataDog")
+		} else {
+			if err := ctrl.DataDog.PostMetrics(paramAction.DataDogMetrics); err != nil {
+				logE.WithError(err).Error("post metrics to DataDog")
+			}
+			logE.Info("post metrics to DataDog")
 		}
 	}
 	return nil
