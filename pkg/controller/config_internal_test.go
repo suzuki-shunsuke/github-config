@@ -1,10 +1,9 @@
-package controller_test
+package controller
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/suzuki-shunsuke/github-config/pkg/controller"
 	"gopkg.in/yaml.v2"
 )
 
@@ -13,7 +12,7 @@ func TestRule_UnmarshalYAML(t *testing.T) {
 	data := []struct {
 		caseName string
 		yaml     string
-		exp      controller.Rule
+		exp      Rule
 		isErr    bool
 	}{
 		{
@@ -21,12 +20,23 @@ func TestRule_UnmarshalYAML(t *testing.T) {
 			yaml: `
 policy:
   type: has_projects
-targets:
-- github-config
+target: |
+  github-config
 `,
-			exp: controller.Rule{
-				Policy:  &controller.RuleHasProjects{},
-				Targets: controller.Targets{"github-config"},
+			exp: Rule{
+				Policy: &RuleHasProjects{
+					CheckListProjects: true,
+					action: ActionConfig{
+						Type: "fix",
+					},
+				},
+				Target: Target{
+					Patterns: []TargetPattern{
+						{
+							Pattern: "github-config",
+						},
+					},
+				},
 			},
 		},
 	}
@@ -34,7 +44,7 @@ targets:
 		d := d
 		t.Run(d.caseName, func(t *testing.T) {
 			t.Parallel()
-			rule := controller.Rule{}
+			rule := Rule{}
 			err := yaml.Unmarshal([]byte(d.yaml), &rule)
 			if d.isErr {
 				require.NotNil(t, err)

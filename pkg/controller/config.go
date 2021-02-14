@@ -38,14 +38,14 @@ type RepoPolicy interface {
 }
 
 type Rule struct {
-	Policy  RepoPolicy
-	Targets Targets
+	Policy RepoPolicy
+	Target Target
 }
 
 type RuleConfig struct {
-	Policy  PolicyConfig
-	Targets Targets
-	Action  ActionConfig
+	Policy PolicyConfig
+	Target Target
+	Action ActionConfig
 }
 
 type PolicyConfig struct {
@@ -75,7 +75,7 @@ func (rule *Rule) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if err := unmarshal(&a); err != nil {
 		return err
 	}
-	rule.Targets = a.Targets
+	rule.Target = a.Target
 	if a.Action.Type == "" {
 		a.Action.Type = "fix"
 	}

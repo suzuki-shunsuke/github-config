@@ -117,9 +117,9 @@ func (ctrl *Controller) handleRepo(ctx context.Context, param Param, client *git
 	}
 	for _, rule := range ctrl.Config.Repo.Rules {
 		logE.WithFields(logrus.Fields{
-			"targets": rule.Targets,
+			"target": rule.Target,
 		}).Debug("check rule")
-		if f, err := rule.Targets.Match(repo); err != nil { //nolint:nestif
+		if f, err := rule.Target.Match(repo); err != nil { //nolint:nestif
 			logE.WithError(err).Error("check a repository matches with the targets")
 			continue
 		} else if f {
