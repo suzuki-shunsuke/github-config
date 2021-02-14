@@ -1,14 +1,12 @@
 package controller
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"os"
 
-	"github.com/google/go-github/v33/github"
+	"github.com/suzuki-shunsuke/github-config/pkg/domain"
 	"gopkg.in/yaml.v2"
-	"gopkg.in/zorkian/go-datadog-api.v2"
 )
 
 type Config struct {
@@ -29,31 +27,18 @@ type RepoConfig struct {
 	Rules []Rule
 }
 
-type RepoPolicy interface {
-	Match(ctx context.Context, repo Repository) (bool, error)
-	SetGitHubClient(*github.Client)
-	SetDataDogClient(*datadog.Client)
-	Action(ctx context.Context, param *ParamAction) error
-	DataDogMetric(ctx context.Context, param *ParamAction) error
-}
-
 type Rule struct {
-	Policy RepoPolicy
+	Policy domain.RepoPolicy
 	Target Target
 }
 
 type RuleConfig struct {
 	Policy PolicyConfig
 	Target Target
-	Action ActionConfig
+	Action domain.ActionConfig
 }
 
 type PolicyConfig struct {
-	Type  string
-	Param map[string]interface{}
-}
-
-type ActionConfig struct {
 	Type  string
 	Param map[string]interface{}
 }

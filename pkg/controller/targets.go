@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+
+	"github.com/suzuki-shunsuke/github-config/pkg/domain"
 )
 
 type Target struct {
@@ -36,7 +38,7 @@ func (target *Target) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return nil
 }
 
-func (target *Target) Match(repo Repository) (bool, error) {
+func (target *Target) Match(repo domain.Repository) (bool, error) {
 	matched := false
 	for _, pattern := range target.Patterns {
 		if matched {
@@ -69,7 +71,7 @@ type TargetPattern struct {
 	Pattern string
 }
 
-func (target *TargetPattern) Match(repo Repository) (bool, error) {
+func (target *TargetPattern) Match(repo domain.Repository) (bool, error) {
 	if f, err := filepath.Match(target.Pattern, repo.Name); err != nil {
 		return false, fmt.Errorf("check whether repsitory name matches with pattern: %w", err)
 	} else if f {

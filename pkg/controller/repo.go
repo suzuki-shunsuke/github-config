@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/go-github/v33/github"
 	"github.com/sirupsen/logrus"
+	"github.com/suzuki-shunsuke/github-config/pkg/domain"
 	"golang.org/x/oauth2"
 	"gopkg.in/zorkian/go-datadog-api.v2"
 )
@@ -49,7 +50,7 @@ func (ctrl *Controller) RunRepo(ctx context.Context, param Param) error {
 		"count": len(repos),
 	}).Info("list repositories")
 	for _, repo := range repos {
-		r := Repository{
+		r := domain.Repository{
 			GitHub: repo,
 			Name:   repo.GetName(),
 			Owner:  cfg.Owner,
@@ -85,30 +86,13 @@ func (ctrl *Controller) listRepos(ctx context.Context, client *github.Client, pa
 	return arr, nil
 }
 
-type Repository struct {
-	GitHub *github.Repository
-	Owner  string
-	Name   string
-}
-
-type ParamAction struct {
-	Repo             Repository
-	UpdatedRepo      *github.Repository
-	Actions          []ActionConfig
-	DataDogMetrics   []datadog.Metric
-	TimestampFloat64 float64
-	TimestampInt     int
-	IsEdited         bool
-	DryRun           bool
-}
-
-func (ctrl *Controller) handleRepo(ctx context.Context, param Param, client *github.Client, repo Repository) error { //nolint:unparam
+func (ctrl *Controller) handleRepo(ctx context.Context, param Param, client *github.Client, repo domain.Repository) error { //nolint:unparam
 	repoName := repo.Name
 	logE := logrus.WithFields(logrus.Fields{
 		"repo": repoName,
 	})
 	ts := time.Now().Unix()
-	paramAction := ParamAction{
+	paramAction := domain.ParamAction{
 		Repo:             repo,
 		UpdatedRepo:      &github.Repository{},
 		TimestampFloat64: float64(ts),

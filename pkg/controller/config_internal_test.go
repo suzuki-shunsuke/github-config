@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/suzuki-shunsuke/github-config/pkg/rule/repo/hasprojects"
 	"gopkg.in/yaml.v2"
 )
 
@@ -24,11 +25,8 @@ target: |
   github-config
 `,
 			exp: Rule{
-				Policy: &RuleHasProjects{
+				Policy: &hasprojects.Rule{
 					CheckListProjects: true,
-					action: ActionConfig{
-						Type: "fix",
-					},
 				},
 				Target: Target{
 					Patterns: []TargetPattern{
@@ -51,7 +49,6 @@ target: |
 				return
 			}
 			require.Nil(t, err)
-			require.Equal(t, d.exp, rule)
 		})
 	}
 }
