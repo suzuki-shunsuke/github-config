@@ -10,6 +10,8 @@ import (
 	"gopkg.in/zorkian/go-datadog-api.v2"
 )
 
+const datadogMetricName = "github_config.repo.has_projects"
+
 type Rule struct {
 	client  *github.Client
 	datadog *datadog.Client
@@ -54,7 +56,7 @@ func (rule *Rule) dataDogMetric(repo domain.Repository, now *float64) datadog.Me
 		f = 1.0
 	}
 	return datadog.Metric{
-		Metric: datadog.String("github_config.repo.has_projects"),
+		Metric: datadog.String(datadogMetricName),
 		Points: []datadog.DataPoint{
 			{now, &f},
 		},
