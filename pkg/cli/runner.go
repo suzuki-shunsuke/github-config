@@ -17,12 +17,12 @@ type Runner struct {
 func (runner *Runner) Run(ctx context.Context, args ...string) error {
 	app := cli.App{
 		Name:    "github-config",
-		Usage:   "GitHub Organization Configuration Management. https://github.com/suzuki-shunsuke/github-config",
+		Usage:   "Make GitHub Organization and Repositories Settings compliant with Policy. https://github.com/suzuki-shunsuke/github-config",
 		Version: constant.Version,
 		Commands: []*cli.Command{
 			{
 				Name:   "repo",
-				Usage:  "GitHub Repositories Configuration Management",
+				Usage:  "Make GitHub Repositories Settings compliant with Policy",
 				Action: runner.repoAction,
 				Flags: []cli.Flag{
 					&cli.StringFlag{
@@ -42,7 +42,7 @@ func (runner *Runner) Run(ctx context.Context, args ...string) error {
 			},
 			{
 				Name:   "org",
-				Usage:  "GitHub Organization Configuration Management",
+				Usage:  "Make GitHub Organization Settings compliant with Policy",
 				Action: runner.orgAction,
 				Flags: []cli.Flag{
 					&cli.StringFlag{
