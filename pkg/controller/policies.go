@@ -2,6 +2,7 @@ package controller
 
 import (
 	"github.com/suzuki-shunsuke/github-config/pkg/domain"
+	"github.com/suzuki-shunsuke/github-config/pkg/rule/org/defaultrepositorypermission"
 	"github.com/suzuki-shunsuke/github-config/pkg/rule/org/hasorganizationprojects"
 	"github.com/suzuki-shunsuke/github-config/pkg/rule/repo/archived"
 	"github.com/suzuki-shunsuke/github-config/pkg/rule/repo/hasissues"
@@ -25,4 +26,5 @@ func supportedRepoPolicies(policies map[string]NewRepoPolicy) {
 
 func supportedOrgPolicies(policies map[string]NewOrgPolicy) {
 	policies["has_organization_projects"] = hasorganizationprojects.New
+	policies["default_repository_permission"] = defaultrepositorypermission.New
 }
