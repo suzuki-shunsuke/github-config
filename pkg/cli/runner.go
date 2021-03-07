@@ -40,6 +40,26 @@ func (runner *Runner) Run(ctx context.Context, args ...string) error {
 					},
 				},
 			},
+			{
+				Name:   "org",
+				Usage:  "GitHub Organization Configuration Management",
+				Action: runner.orgAction,
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:  "log-level",
+						Usage: "log level",
+					},
+					&cli.StringFlag{
+						Name:    "config",
+						Aliases: []string{"c"},
+						Usage:   "configuration file path",
+					},
+					&cli.BoolFlag{
+						Name:  "dry-run",
+						Usage: "dry run",
+					},
+				},
+			},
 		},
 	}
 

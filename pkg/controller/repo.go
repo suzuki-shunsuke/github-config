@@ -93,7 +93,7 @@ func (ctrl *Controller) listRepos(ctx context.Context, client *github.Client, pa
 
 func (ctrl *Controller) repoAction(ctx context.Context, param *domain.ParamAction, policy domain.RepoPolicy) error {
 	switch t := policy.Action().Type; t {
-	case "datadog_metric":
+	case datadogMetric:
 	case "fix":
 		a, ok := policy.(domain.Fixable)
 		if !ok {
@@ -129,7 +129,7 @@ func (ctrl *Controller) handleRepo(ctx context.Context, param Param, client *git
 			continue
 		} else if f {
 			logE.Debug("a repository matches with the targets")
-			if actionConfig.Type == "datadog_metric" {
+			if actionConfig.Type == datadogMetric {
 				paramAction.DataDogMetrics = append(paramAction.DataDogMetrics, rule.Policy.DataDogMetric(paramAction.Repo, &paramAction.TimestampFloat64))
 			}
 			if f, err := rule.Policy.Match(ctx, repo); err != nil {

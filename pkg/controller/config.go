@@ -9,9 +9,12 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+const fix = "fix"
+
 type Config struct {
 	Owner string `yaml:"org_name"`
 	Repo  RepoConfig
+	Org   OrgConfig
 }
 
 type Param struct {
@@ -62,12 +65,13 @@ func (rule *Rule) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	}
 	rule.Target = a.Target
 	if a.Action.Type == "" {
-		a.Action.Type = "fix"
+		a.Action.Type = fix
 	}
-	newRepoMatchers := supportedRepoPolicies()
+	newRepoMatchers := map[string]NewRepoPolicy{}
+	supportedRepoPolicies(newRepoMatchers)
 	if newPolicy, ok := newRepoMatchers[a.Policy.Type]; !ok {
 		return errors.New("invalid policy type: " + a.Policy.Type)
-	} else {
+	} else { //nolint:revive
 		policy, err := newPolicy(a.Policy.Param, a.Action)
 		if err != nil {
 			return err
