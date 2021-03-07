@@ -81,12 +81,12 @@ func (ctrl *Controller) listRepos(ctx context.Context, client *github.Client, pa
 		if len(repos) != maxPerPage {
 			return arr, nil
 		}
-		opt.Page += 1
+		opt.Page++
 	}
 	return arr, nil
 }
 
-func (ctrl *Controller) handleRepo(ctx context.Context, param Param, client *github.Client, repo domain.Repository) error { //nolint:unparam
+func (ctrl *Controller) handleRepo(ctx context.Context, param Param, client *github.Client, repo domain.Repository) error { //nolint:unparam,cyclop
 	repoName := repo.Name
 	logE := logrus.WithFields(logrus.Fields{
 		"repo": repoName,
