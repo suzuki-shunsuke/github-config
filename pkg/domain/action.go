@@ -14,14 +14,20 @@ type ActionConfig struct {
 
 type RepoPolicy interface {
 	Match(ctx context.Context, repo Repository) (bool, error)
-	SetGitHubClient(*github.Client)
-	SetDataDogClient(*datadog.Client)
 	Action() ActionConfig
 	DataDogMetric(repo Repository, now *float64) datadog.Metric
 }
 
 type Fixable interface {
 	Fix(ctx context.Context, param *ParamAction)
+}
+
+type UseGitHubClient interface {
+	SetGitHubClient(*github.Client)
+}
+
+type UseDataDogClient interface {
+	SetDataDogClient(*datadog.Client)
 }
 
 type Repository struct {

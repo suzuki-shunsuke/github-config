@@ -11,9 +11,7 @@ import (
 const datadogMetricName = "github_config.repo.has_wiki"
 
 type Rule struct {
-	client  *github.Client
-	datadog *datadog.Client
-	action  domain.ActionConfig
+	action domain.ActionConfig
 }
 
 func New(param map[string]interface{}, action domain.ActionConfig) (domain.RepoPolicy, error) {
@@ -21,14 +19,6 @@ func New(param map[string]interface{}, action domain.ActionConfig) (domain.RepoP
 		action: action,
 	}
 	return &policy, nil
-}
-
-func (rule *Rule) SetGitHubClient(client *github.Client) {
-	rule.client = client
-}
-
-func (rule *Rule) SetDataDogClient(client *datadog.Client) {
-	rule.datadog = client
 }
 
 func (rule *Rule) DataDogMetric(repo domain.Repository, now *float64) datadog.Metric {

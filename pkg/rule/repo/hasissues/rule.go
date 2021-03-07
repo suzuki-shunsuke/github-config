@@ -14,7 +14,6 @@ const datadogMetricName = "github_config.repo.has_issues"
 
 type Rule struct {
 	client          *github.Client
-	datadog         *datadog.Client
 	action          domain.ActionConfig
 	CheckListIssues bool
 }
@@ -36,10 +35,6 @@ func New(param map[string]interface{}, action domain.ActionConfig) (domain.RepoP
 
 func (rule *Rule) SetGitHubClient(client *github.Client) {
 	rule.client = client
-}
-
-func (rule *Rule) SetDataDogClient(client *datadog.Client) {
-	rule.datadog = client
 }
 
 func (rule *Rule) DataDogMetric(repo domain.Repository, now *float64) datadog.Metric {

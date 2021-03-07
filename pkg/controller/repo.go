@@ -38,8 +38,12 @@ func (ctrl *Controller) RunRepo(ctx context.Context, param Param) error {
 		&oauth2.Token{AccessToken: param.GitHubToken},
 	)))
 	for i, rule := range cfg.Repo.Rules {
-		rule.Policy.SetGitHubClient(client)
-		rule.Policy.SetDataDogClient(ctrl.DataDog)
+		if policy, ok := rule.Policy.(domain.UseGitHubClient); ok {
+			policy.SetGitHubClient(client)
+		}
+		if policy, ok := rule.Policy.(domain.UseDataDogClient); ok {
+			policy.SetDataDogClient(ctrl.DataDog)
+		}
 		cfg.Repo.Rules[i] = rule
 	}
 
