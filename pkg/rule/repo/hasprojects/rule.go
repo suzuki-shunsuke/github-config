@@ -43,14 +43,7 @@ func (rule *Rule) SetDataDogClient(client *datadog.Client) {
 	rule.datadog = client
 }
 
-func (rule *Rule) DataDogMetric(ctx context.Context, param *domain.ParamAction) error {
-	if rule.action.Type == "datadog_metric" {
-		param.DataDogMetrics = append(param.DataDogMetrics, rule.dataDogMetric(param.Repo, &param.TimestampFloat64))
-	}
-	return nil
-}
-
-func (rule *Rule) dataDogMetric(repo domain.Repository, now *float64) datadog.Metric {
+func (rule *Rule) DataDogMetric(repo domain.Repository, now *float64) datadog.Metric {
 	f := 0.0
 	if repo.GitHub.GetHasProjects() {
 		f = 1.0
@@ -67,15 +60,8 @@ func (rule *Rule) dataDogMetric(repo domain.Repository, now *float64) datadog.Me
 	}
 }
 
-func (rule *Rule) Action(ctx context.Context, param *domain.ParamAction) error {
-	switch rule.action.Type {
-	case "datadog_metric":
-	case "fix":
-		rule.Fix(ctx, param)
-	default:
-		return errors.New("invalid action type: " + rule.action.Type)
-	}
-	return nil
+func (rule *Rule) Action() domain.ActionConfig {
+	return rule.action
 }
 
 func (rule *Rule) Fix(ctx context.Context, param *domain.ParamAction) {

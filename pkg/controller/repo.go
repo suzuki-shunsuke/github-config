@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -86,6 +87,21 @@ func (ctrl *Controller) listRepos(ctx context.Context, client *github.Client, pa
 	return arr, nil
 }
 
+func (ctrl *Controller) repoAction(ctx context.Context, param *domain.ParamAction, policy domain.RepoPolicy) error {
+	switch t := policy.Action().Type; t {
+	case "datadog_metric":
+	case "fix":
+		a, ok := policy.(domain.Fixable)
+		if !ok {
+			return errors.New("this rule doesn't support to fix")
+		}
+		a.Fix(ctx, param)
+	default:
+		return errors.New("invalid action type: " + t)
+	}
+	return nil
+}
+
 func (ctrl *Controller) handleRepo(ctx context.Context, param Param, client *github.Client, repo domain.Repository) error { //nolint:unparam,cyclop
 	repoName := repo.Name
 	logE := logrus.WithFields(logrus.Fields{
@@ -100,6 +116,7 @@ func (ctrl *Controller) handleRepo(ctx context.Context, param Param, client *git
 		DryRun:           param.DryRun,
 	}
 	for _, rule := range ctrl.Config.Repo.Rules {
+		actionConfig := rule.Policy.Action()
 		logE.WithFields(logrus.Fields{
 			"target": rule.Target,
 		}).Debug("check rule")
@@ -108,8 +125,8 @@ func (ctrl *Controller) handleRepo(ctx context.Context, param Param, client *git
 			continue
 		} else if f {
 			logE.Debug("a repository matches with the targets")
-			if err := rule.Policy.DataDogMetric(ctx, &paramAction); err != nil {
-				logE.WithError(err).Error("add a metric which is sent to DataDog")
+			if actionConfig.Type == "datadog_metric" {
+				paramAction.DataDogMetrics = append(paramAction.DataDogMetrics, rule.Policy.DataDogMetric(paramAction.Repo, &paramAction.TimestampFloat64))
 			}
 			if f, err := rule.Policy.Match(ctx, repo); err != nil {
 				logE.WithError(err).Error("check a repository matches with the policy")
@@ -117,7 +134,7 @@ func (ctrl *Controller) handleRepo(ctx context.Context, param Param, client *git
 			} else if f {
 				logE.Info("a repository matches with the rule")
 				// TODO action
-				if err := rule.Policy.Action(ctx, &paramAction); err != nil {
+				if err := ctrl.repoAction(ctx, &paramAction, rule.Policy); err != nil {
 					logE.WithError(err).Error("prepare")
 					continue
 				}
