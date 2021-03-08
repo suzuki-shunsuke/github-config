@@ -3,7 +3,30 @@ archives:
 - name_template: "{{.ProjectName}}_{{.Os}}_{{.Arch}}"
 builds:
 - binary: github-config
+  id: github-config
   main: cmd/github-config/main.go
+  env:
+  - CGO_ENABLED=0
+  goos:
+  - windows
+  - darwin
+  - linux
+  goarch:
+  - amd64
+- binary: github-config-lambda-org
+  id: github-config-lambda-org
+  main: cmd/github-config-lambda-org/main.go
+  env:
+  - CGO_ENABLED=0
+  goos:
+  - windows
+  - darwin
+  - linux
+  goarch:
+  - amd64
+- binary: github-config-lambda-repo
+  id: github-config-lambda-repo
+  main: cmd/github-config-lambda-repo/main.go
   env:
   - CGO_ENABLED=0
   goos:
