@@ -4,7 +4,7 @@ go 1.15
 
 require (
 	github.com/aws/aws-lambda-go v1.27.0
-	github.com/aws/aws-sdk-go v1.42.16
+	github.com/aws/aws-sdk-go v1.42.17
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
 	github.com/google/go-github/v33 v33.0.0
 	github.com/sirupsen/logrus v1.8.1
