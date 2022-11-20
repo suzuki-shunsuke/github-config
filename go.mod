@@ -11,7 +11,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/urfave/cli/v2 v2.3.0
 	github.com/zorkian/go-datadog-api v2.30.0+incompatible // indirect
-	golang.org/x/oauth2 v0.0.0-20210201163806-010130855d6c
+	golang.org/x/oauth2 v0.2.0
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/zorkian/go-datadog-api.v2 v2.30.0
 )
